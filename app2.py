@@ -4,8 +4,7 @@ import io
 from PIL import Image
 
 # --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="Wimbly Studio BETA", page_icon="W", layout="wide")
-
+st.set_page_config(page_title="Wimbly Studio", page_icon="🎨", layout="wide")
 
 # --- RECUPERO LA CHIAVE SEGRETA ---
 try:
@@ -14,44 +13,41 @@ except:
     st.warning("⚠️ Chiave segreta non trovata. Inseriscila manualmente nella sidebar.")
     hf_token = None
 
-# --- IL MENU DEI MODELLI (Il cuore dell'aggiornamento) ---
-# Qui colleghiamo nomi facili a URL complessi
+# --- MENU MODELLI ---
 MODELS = {
-    "🚀 Flux Schnell (Veloce & Realistico)": "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
-    "🎨 Stable Diffusion XL (Artistico)": "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0",
-    "👾 Animagine XL (Stile Anime)": "https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1"
+    "🚀 Flux Schnell": "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+    "🎨 Stable Diffusion XL": "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0",
+    "👾 Animagine XL (Anime)": "https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1"
 }
 
-# --- IL MENU DELLE RISOLUZIONI ---
-SIZES = {
-    "Quadrato (1:1 - Instagram)": (1024, 1024),
-    "Paesaggio (16:9 - YouTube)": (1280, 720),
-    "Ritratto (9:16 - TikTok/Stories)": (720, 1280),
-    "Standard (4:3)": (1024, 768)
+# --- MENU RISOLUZIONI (Trucco del Prompt) ---
+# Invece di pixel, usiamo stringhe che aggiungiamo al prompt
+ASPECT_RATIOS = {
+    "Quadrato (1:1)": "",  # Default
+    "Paesaggio (16:9)": " --ar 16:9",
+    "Ritratto (9:16)": " --ar 9:16",
+    "Standard (4:3)": " --ar 4:3"
 }
 
 # --- INTERFACCIA UTENTE ---
-st.title("Wimbly Studio BETA")
-st.write("Genera immagini incredibili usando l'AI.")
+st.title("Wimbly Studio 🎨")
+st.write("Crea immagini con l'Intelligenza Artificiale.")
 
-
-# Dividiamo lo schermo in due colonne (Sidebar e Main)
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Impostazioni")
+    st.header("⚙️ Pannello di Controllo")
     
     # 1. Scelta Modello
-    selected_model_name = st.selectbox("Scegli il Modello AI", list(MODELS.keys()))
+    selected_model_name = st.selectbox("Modello AI", list(MODELS.keys()))
     api_url = MODELS[selected_model_name]
     
     # 2. Scelta Formato
-    selected_size_name = st.selectbox("Formato Immagine", list(SIZES.keys()))
-    width, height = SIZES[selected_size_name]
+    selected_ratio_name = st.selectbox("Formato", list(ASPECT_RATIOS.keys()))
+    ratio_suffix = ASPECT_RATIOS[selected_ratio_name]
     
     st.divider()
-    
-    # Se non c'è il segreto, mostra l'input manuale
     if not hf_token:
-        hf_token = st.text_input("Hugging Face Token", type="password")
+        hf_token = st.text_input("Token HF", type="password")
 
 # --- LOGICA DI CHIAMATA ---
 def query_hugging_face(payload, token, url):
@@ -63,16 +59,16 @@ def query_hugging_face(payload, token, url):
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    prompt = st.text_area(
+    prompt_utente = st.text_area(
         "Descrivi la tua immaginazione:", 
-        "Un astronauta che cavalca un cavallo su Marte, fotorealistico, 8k, illuminazione cinematografica",
+        "Un astronauta che cavalca un cavallo su Marte, fotorealistico, 8k",
         height=150
     )
     
-    generate_btn = st.button("✨ Genera Opera d'Arte", type="primary", use_container_width=True)
+    generate_btn = st.button("✨ Genera Immagine", type="primary", use_container_width=True)
 
 with col2:
-    st.info(f"**Modello:** {selected_model_name}\n\n**Misure:** {width}x{height}px")
+    st.info(f"**Modello:** {selected_model_name}\n\n**Formato:** {selected_ratio_name}")
 
 # --- ESECUZIONE ---
 if generate_btn:
@@ -81,13 +77,13 @@ if generate_btn:
     else:
         with st.spinner(f'Sto chiedendo a {selected_model_name} di disegnare...'):
             try:
-                # Costruiamo il pacchetto dati con le dimensioni
+                # TRUCCO: Uniamo il prompt dell'utente con il comando formato
+                # Esempio: "Gatto blu" + " --ar 16:9"
+                final_prompt = prompt_utente + ratio_suffix
+                
+                # Payload SEMPLIFICATO (Senza parametri che rompono l'API)
                 payload = {
-                    "inputs": prompt,
-                    "parameters": {
-                        "width": width,
-                        "height": height
-                    }
+                    "inputs": final_prompt,
                 }
                 
                 image_bytes = query_hugging_face(payload, hf_token, api_url)
@@ -97,20 +93,18 @@ if generate_btn:
                 else:
                     image = Image.open(io.BytesIO(image_bytes))
                     
-                    # Mostra l'immagine grande
-                    st.image(image, caption=f"{selected_model_name}", use_container_width=True)
+                    st.image(image, caption=f"Generata con {selected_model_name}", use_container_width=True)
                     
-                    # Bottone Download
                     buf = io.BytesIO()
                     image.save(buf, format="PNG")
                     st.download_button(
                         label="⬇️ Scarica Immagine",
                         data=buf.getvalue(),
-                        file_name="wimblyfile.png",
+                        file_name="wimbly_art.png",
                         mime="image/png",
                         use_container_width=True
                     )
-                    st.success("Creazione completata!")
+                    st.success("Fatto! 🚀")
 
             except Exception as e:
                 st.error(f"Qualcosa è andato storto: {e}")
