@@ -4,9 +4,9 @@ import io
 from PIL import Image
 
 # --- CONFIGURAZIONE ---
-st.set_page_config(page_title="Nano Banana Flux", page_icon="🍌")
+st.set_page_config(page_title="Wimbly Studio BETA", page_icon="W")
 
-st.title("Jack Generator")
+st.title("Wimbly Studio BETA")
 st.write("Genera immagini incredibili usando l'AI.")
 st.write("Modello: FLUX.1-schnell di Hugging Face")
 
